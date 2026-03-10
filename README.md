@@ -39,6 +39,106 @@ In no particular order:
 - [x] Template logic (if/for)
 - [x] Save images locally, [added in Obsidian 1.8.0](https://obsidian.md/changelog/2024-12-18-desktop-v1.8.0/)
 
+## CLI tool
+
+The `cli/` directory contains a command-line tool that clips web pages into Obsidian notes without a browser extension. It uses [Playwright](https://playwright.dev) to render pages (including JavaScript-heavy sites) and reuses the same template engine as the extension.
+
+### Setup
+
+```sh
+cd cli
+npm install
+npx playwright install chromium
+npm run build
+```
+
+### Usage
+
+```sh
+node dist/index.js <url> [options]
+```
+
+**Options**
+
+| Flag | Description |
+|---|---|
+| `--headed` | Open a visible browser window instead of running headless |
+| `--vault <name>` | Target Obsidian vault name |
+| `--output-dir <path>` | Without `--vault-path`: write the note and images here (disk mode, no Obsidian). With `--vault-path`: override the default `<vault-path>/attachments/` image directory. |
+| `--vault-path <path>` | Filesystem path to the Obsidian vault root; enables image downloading to `<vault-path>/attachments/` and opens the note in Obsidian. |
+| `--profile-dir <path>` | Playwright persistent profile directory; all browser data is stored here and reused across runs |
+| `--session-dir <path>` | Override the default session directory (`~/.config/obsidian-clipper`) |
+| `--login` | Open a browser window to log into sites (alias for the `login` subcommand) |
+
+**Subcommands**
+
+| Command | Description |
+|---|---|
+| `login` | Open a browser to log into sites; session is saved when the browser is closed |
+| `sessions` | Show the session directory and whether a saved session exists |
+
+### Examples
+
+Clip a public page:
+
+```sh
+node dist/index.js https://example.com
+```
+
+Clip with a visible browser window (useful for pages that block headless browsers):
+
+```sh
+node dist/index.js https://example.com --headed
+```
+
+Clip into a specific vault:
+
+```sh
+node dist/index.js https://example.com --vault "My Vault"
+```
+
+Clip to a local `.md` file with images downloaded alongside it (no Obsidian needed):
+
+```sh
+node dist/index.js https://example.com --output-dir ~/clips
+# note  → ~/clips/<title>.md
+# images → ~/clips/attachments/<filename>
+```
+
+Download images into an Obsidian vault and open the note in Obsidian:
+
+```sh
+node dist/index.js https://example.com --vault-path ~/ObsidianVault
+# note  → opened in Obsidian
+# images → ~/ObsidianVault/attachments/<filename>
+```
+
+Obsidian mode with a custom image directory:
+
+```sh
+node dist/index.js https://example.com --vault-path ~/ObsidianVault --output-dir ~/ObsidianVault/assets
+```
+
+### Content extraction
+
+The CLI uses Defuddle to extract the main article content. For forum or thread-style pages where Defuddle misses the real post bodies, the CLI falls back to a forum extractor that stitches together post content blocks and attachments.
+
+### Clipping pages that require login
+
+Run the `login` subcommand to open a headed browser session. Navigate to any sites and log in normally. When you close the browser, the session (cookies and storage) is saved to `~/.config/obsidian-clipper/session.json`.
+
+```sh
+node dist/index.js login
+```
+
+Subsequent `clip` runs automatically load the saved session. Running `login` again merges new logins into the existing session file, so previously saved logins are not lost.
+
+The `--headed` flag can be combined with a saved session when you want to clip a login-protected page in a visible browser window:
+
+```sh
+node dist/index.js https://private-site.com --headed
+```
+
 ## Developers
 
 To build the extension:
